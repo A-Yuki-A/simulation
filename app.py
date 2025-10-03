@@ -7,13 +7,12 @@ from matplotlib.patches import Patch
 from pathlib import Path
 
 # === フォント設定 ===
-fp = Path("fonts/SourceHanCodeJP-Regular.otf")  # プロジェクトに fonts フォルダを作ってフォントを置く
+fp = Path("font/SourceHanCodeJP-Regular.otf")
 if fp.exists():
     fm.fontManager.addfont(str(fp))
     plt.rcParams["font.family"] = "Source Han Code JP"
 else:
-    # 環境にある日本語フォントを優先して使う
-    for name in ["Noto Sans JP", "IPAexGothic", "Yu Gothic", "Hiragino Sans", "Meiryo"]:
+    for name in ["Noto Sans JP","IPAexGothic","Yu Gothic","Hiragino Sans","Meiryo"]:
         try:
             fm.findfont(fm.FontProperties(family=name), fallback_to_default=False)
             plt.rcParams["font.family"] = name
@@ -21,6 +20,18 @@ else:
         except Exception:
             pass
 plt.rcParams["axes.unicode_minus"] = False
+
+st.set_page_config(page_title="CorrGraph", layout="wide")
+
+# タイトルの上に余白を追加
+st.markdown("""
+<style>
+h1 { margin-top: 2rem !important; }
+</style>
+""", unsafe_allow_html=True)
+
+st.title("CorrGraph")
+st.write("とどランの **各ランキング記事のURL** を2つ貼り付けてください。")
 
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
