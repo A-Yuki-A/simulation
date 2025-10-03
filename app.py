@@ -6,37 +6,46 @@ import streamlit as st
 from matplotlib.patches import Patch
 from pathlib import Path
 
-# === フォント設定 ===
-fp = Path("font/SourceHanCodeJP-Regular.otf")
-if fp.exists():
-    fm.fontManager.addfont(str(fp))
-    plt.rcParams["font.family"] = "Source Han Code JP"
-else:
+# ========== 画面設定（最初の1回だけ） ==========
+st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
+
+# === 日本語フォント設定（堅牢版） ===
+def setup_jp_font():
+    root = Path(__file__).parent
+    candidates = [
+        root / "font" / "IPAexGothic.ttf",               # 推奨: TrueTypeで安定
+        root / "font" / "SourceHanCodeJP-Regular.otf",    # 手元にある場合
+        root / "font" / "NotoSansCJKjp-Regular.otf",      # Noto CJK
+    ]
+
+    # 1) 同梱フォントを優先
+    for p in candidates:
+        if p.exists():
+            try:
+                fm.fontManager.addfont(str(p))
+                family = fm.FontProperties(fname=str(p)).get_name()
+                plt.rcParams["font.family"] = family
+                plt.rcParams["axes.unicode_minus"] = False
+                return
+            except Exception as e:
+                # 読めなかったら次の候補へ
+                pass
+
+    # 2) 環境にインストール済みの和文フォントにフォールバック
     for name in ["Noto Sans JP", "IPAexGothic", "Yu Gothic", "Hiragino Sans", "Meiryo"]:
         try:
-            fm.findfont(fm.FontProperties(family=name), fallback_to_default=False)
+            _ = fm.findfont(fm.FontProperties(family=name), fallback_to_default=False)
             plt.rcParams["font.family"] = name
-            break
+            plt.rcParams["axes.unicode_minus"] = False
+            return
         except Exception:
             pass
 
-plt.rcParams["axes.unicode_minus"] = False
+    # 3) 最後の保険（英字でもマイナスは崩れないように）
+    plt.rcParams["axes.unicode_minus"] = False
 
-# ========== 画面設定 ==========
-st.set_page_config(page_title="CorrGraph", layout="wide")
+setup_jp_font()
 
-# タイトルの上に余白を追加
-st.markdown("""
-<style>
-h1 { margin-top: 2rem !important; }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("CorrGraph")
-st.write("とどランの **各ランキング記事のURL** を2つ貼り付けてください。")
-
-# ========== 画面設定 ==========
-st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
 st.title("レジ待ち行列シミュレーション（レジ1台 ↔ 2台 切替）")
 st.caption("薄い枠＝待ち時間、太い棒＝サービス中。同じ乱数シードで実行すると結果は再現できます。")
 
@@ -60,7 +69,6 @@ with st.sidebar:
     )
     st.markdown("---")
     run = st.button("シミュレーション実行", use_container_width=True)
-
 
 # ========== シミュレーション関数 ==========
 def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=False):
@@ -115,7 +123,6 @@ def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=Fal
 
     return df, 最大待ち時間, 平均待ち時間, 最大待ち人数
 
-
 # ========== 実行 ==========
 if run:
     N = int(min(max(n_kyaku, 1), 10))
@@ -164,13 +171,14 @@ if run:
         vals = []
         for t in times:
             if arr <= t < start:
-                vals.append(1)
+                vals.append(1)   # 待ち
             elif start <= t < end:
-                vals.append(0)
+                vals.append(0)   # サービス中
             else:
-                vals.append("")
+                vals.append("")  # 範囲外
         grid.append(vals)
 
+    # 列名から「時刻（分）」を削除 → 数値だけにする
     time_cols = [f"{t:.2f}" for t in times]
     grid_df = pd.DataFrame(grid, columns=time_cols)
     grid_df.insert(0, "客番号", df["客番号"].astype(int))
@@ -181,8 +189,10 @@ if run:
     fig, ax = plt.subplots(figsize=(10, 0.35*len(df)+2))
     y = np.arange(len(df))
 
+    # サービス中（塗りつぶしの太い棒）
     ax.barh(y, df["対応終了（分）"] - df["対応開始（分）"],
             left=df["対応開始（分）"], height=0.6, align='center')
+    # 待ち時間（枠線のみ）
     ax.barh(y, df["対応開始（分）"] - df["並び始め（分）"],
             left=df["並び始め（分）"], height=0.6, align='center', fill=False)
 
