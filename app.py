@@ -3,21 +3,36 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import streamlit as st
 from matplotlib.patches import Patch
-import japanize_matplotlib
+from matplotlib import font_manager
+from pathlib import Path
 
-# ===== 日本語フォント設定 =====
-plt.rcParams['font.family'] = 'IPAPGothic'
-plt.rcParams['axes.unicode_minus'] = False
+# ===== 日本語フォント設定（同梱フォント優先） =====
+def set_japanese_font():
+    # 1) リポジトリに同梱したフォントを最優先で使う
+    candidates_local = [
+        Path(__file__).parent / "fonts" / "IPAexGothic.ttf",
+        Path(__file__).parent / "fonts" / "NotoSansCJKjp-Regular.otf",
+        Path(__file__).parent / "fonts" / "NotoSansJP-Regular.ttf",
+    ]
+    for fp in candidates_local:
+        if fp.exists():
+            font_manager.fontManager.addfont(str(fp))
+            plt.rcParams["font.family"] = font_manager.FontProperties(fname=str(fp)).get_name()
+            plt.rcParams["axes.unicode_minus"] = False
+            return
 
-# Mac の場合（コメントアウトを外してください）
-# plt.rcParams['font.family'] = 'Hiragino Sans'
+    # 2) 同梱が無い場合、環境にある日本語フォントを探す（Streamlit Cloud では見つからないことが多い）
+    installed = {f.name for f in font_manager.fontManager.ttflist}
+    for name in ["IPAPGothic", "Noto Sans CJK JP", "Noto Sans JP", "MS Gothic", "Hiragino Sans"]:
+        if name in installed:
+            plt.rcParams["font.family"] = name
+            plt.rcParams["axes.unicode_minus"] = False
+            return
 
-# Linux（Streamlit Cloud など）の場合
-# IPAフォントが必要 → !apt-get -y install fonts-ipafont-gothic
-# plt.rcParams['font.family'] = 'IPAPGothic'
+    # 3) それでも無ければ、とりあえずマイナスだけは崩れないように
+    plt.rcParams["axes.unicode_minus"] = False
 
-# マイナス記号が文字化けしないように
-plt.rcParams['axes.unicode_minus'] = False
+set_japanese_font()
 
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
@@ -45,8 +60,13 @@ with st.sidebar:
     st.markdown("---")
     run = st.button("シミュレーション実行", use_container_width=True)
 
-# ========== シミュレーション関数 ==========
+# ========== シミュレーション（M/M/c風：c=1 or 2） ==========
 def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=False):
+    """
+    先着順（FCFS）。レジが空き次第、次の客の対応を開始。
+    到着間隔 ~ Exp(mean_arrival), 対応時間 ~ Exp(mean_service)
+    servers: レジ台数（1 または 2）
+    """
     rng = np.random.default_rng(seed)
 
     # 到着時刻
@@ -73,15 +93,19 @@ def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=Fal
     queue_len_at_arrival = np.zeros(N, dtype=int)
 
     for i in range(N):
+        # 到着時点でシステム内にいる人数（まだ終わっていない先客）
         in_system = np.sum(end[:i] > arr[i])
         queue_len_at_arrival[i] = max(int(in_system) - servers, 0)
 
+        # 一番早く空くレジ
         s_idx = np.argmin(server_free)
+        # 開始時刻は「到着時刻」と「そのレジが空く時刻」の遅い方
         start[i] = max(arr[i], server_free[s_idx])
         wait[i] = start[i] - arr[i]
         end[i] = start[i] + service[i]
         server_free[s_idx] = end[i]
 
+    # 日本語の列名
     df = pd.DataFrame({
         "客番号": np.arange(1, N+1),
         "並び始め（分）": np.round(arr, 3),
@@ -110,8 +134,9 @@ if run:
         example=example
     )
 
-    lam = 1.0 / float(heikin_tochaku)
-    mu = 1.0 / float(heikin_taio)
+    # 目安：利用率 ρ = λ / (c μ)
+    lam = 1.0 / float(heikin_tochaku)   # 到着率 λ
+    mu = 1.0 / float(heikin_taio)       # サービス率 μ（レジ1台あたり）
     rho = lam / (int(regis) * mu)
 
     st.subheader("結果まとめ")
@@ -146,11 +171,11 @@ if run:
         vals = []
         for t in times:
             if arr <= t < start:
-                vals.append(1)
+                vals.append(1)   # 待ち
             elif start <= t < end:
-                vals.append(0)
+                vals.append(0)   # サービス中
             else:
-                vals.append("")
+                vals.append("")  # 範囲外
         grid.append(vals)
 
     time_cols = [f"時刻（分）：{t:.2f}" for t in times]
@@ -163,8 +188,10 @@ if run:
     fig, ax = plt.subplots(figsize=(10, 0.35*len(df)+2))
     y = np.arange(len(df))
 
+    # サービス中（塗りつぶしの太い棒）
     ax.barh(y, df["対応終了（分）"] - df["対応開始（分）"],
             left=df["対応開始（分）"], height=0.6, align='center')
+    # 待ち時間（枠線のみ＝薄い枠に見える）
     ax.barh(y, df["対応開始（分）"] - df["並び始め（分）"],
             left=df["並び始め（分）"], height=0.6, align='center', fill=False)
 
