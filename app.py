@@ -1,9 +1,20 @@
 import numpy as np
 import pandas as pd
+import matplotlib
 import matplotlib.pyplot as plt
 import streamlit as st
 from matplotlib.patches import Patch
 
+# ===== 日本語フォント設定 =====
+# Windows の場合
+plt.rcParams['font.family'] = 'MS Gothic'
+# Mac の場合
+# plt.rcParams['font.family'] = 'Hiragino Sans'
+# Linux（IPAフォントをインストールしている場合）
+# plt.rcParams['font.family'] = 'IPAPGothic'
+
+# マイナス記号が文字化けしないように
+plt.rcParams['axes.unicode_minus'] = False
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
 st.title("レジ待ち行列シミュレーション（レジ1台 ↔ 2台 切替）")
