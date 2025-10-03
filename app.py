@@ -1,38 +1,31 @@
+import io
+import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib.font_manager as fm
 import streamlit as st
-from matplotlib.patches import Patch
-from matplotlib import font_manager
+import requests
+from bs4 import BeautifulSoup
+from pandas.api.types import is_scalar
 from pathlib import Path
 
-# ===== 日本語フォント設定（同梱フォント優先） =====
-def set_japanese_font():
-    # 1) リポジトリに同梱したフォントを最優先で使う
-    candidates_local = [
-        Path(__file__).parent / "fonts" / "IPAexGothic.ttf",
-        Path(__file__).parent / "fonts" / "NotoSansCJKjp-Regular.otf",
-        Path(__file__).parent / "fonts" / "NotoSansJP-Regular.ttf",
-    ]
-    for fp in candidates_local:
-        if fp.exists():
-            font_manager.fontManager.addfont(str(fp))
-            plt.rcParams["font.family"] = font_manager.FontProperties(fname=str(fp)).get_name()
-            plt.rcParams["axes.unicode_minus"] = False
-            return
-
-    # 2) 同梱が無い場合、環境にある日本語フォントを探す（Streamlit Cloud では見つからないことが多い）
-    installed = {f.name for f in font_manager.fontManager.ttflist}
-    for name in ["IPAPGothic", "Noto Sans CJK JP", "Noto Sans JP", "MS Gothic", "Hiragino Sans"]:
-        if name in installed:
+# === フォント設定 ===
+fp = Path("fonts/SourceHanCodeJP-Regular.otf")
+if fp.exists():
+    fm.fontManager.addfont(str(fp))
+    plt.rcParams["font.family"] = "Source Han Code JP"
+else:
+    for name in ["Noto Sans JP","IPAexGothic","Yu Gothic","Hiragino Sans","Meiryo"]:
+        try:
+            fm.findfont(fm.FontProperties(family=name), fallback_to_default=False)
             plt.rcParams["font.family"] = name
-            plt.rcParams["axes.unicode_minus"] = False
-            return
+            break
+        except Exception:
+            pass
+plt.rcParams["axes.unicode_minus"] = False
 
-    # 3) それでも無ければ、とりあえずマイナスだけは崩れないように
-    plt.rcParams["axes.unicode_minus"] = False
-
-set_japanese_font()
+st.set_page_config(page_title="CorrGraph", layout="wide")
 
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
