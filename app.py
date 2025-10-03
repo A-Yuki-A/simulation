@@ -171,7 +171,7 @@ if run:
                 vals.append("")
         grid.append(vals)
 
-    time_cols = [{t:.2f}" for t in times]
+    time_cols = [f"{t:.2f}" for t in times]
     grid_df = pd.DataFrame(grid, columns=time_cols)
     grid_df.insert(0, "客番号", df["客番号"].astype(int))
     st.dataframe(grid_df, use_container_width=True, height=min(600, 100 + 28*len(grid)))
