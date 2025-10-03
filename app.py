@@ -1,10 +1,9 @@
 import numpy as np
 import pandas as pd
-import matplotlib
 import matplotlib.pyplot as plt
-import japanize_matplotlib  # ← これを追加するだけで日本語OK！
 import streamlit as st
 from matplotlib.patches import Patch
+import japanize_matplotlib
 
 # ===== 日本語フォント設定 =====
 # Windows の場合
