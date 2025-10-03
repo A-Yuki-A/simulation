@@ -6,8 +6,8 @@ from matplotlib.patches import Patch
 import japanize_matplotlib
 
 # ===== 日本語フォント設定 =====
-# Windows の場合
-plt.rcParams['font.family'] = 'MS Gothic'
+plt.rcParams['font.family'] = 'IPAPGothic'
+plt.rcParams['axes.unicode_minus'] = False
 
 # Mac の場合（コメントアウトを外してください）
 # plt.rcParams['font.family'] = 'Hiragino Sans'
