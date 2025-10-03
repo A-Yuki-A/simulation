@@ -21,18 +21,6 @@ else:
             pass
 plt.rcParams["axes.unicode_minus"] = False
 
-st.set_page_config(page_title="CorrGraph", layout="wide")
-
-# タイトルの上に余白を追加
-st.markdown("""
-<style>
-h1 { margin-top: 2rem !important; }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("CorrGraph")
-st.write("とどランの **各ランキング記事のURL** を2つ貼り付けてください。")
-
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
 st.title("レジ待ち行列シミュレーション（レジ1台 ↔ 2台 切替）")
@@ -167,9 +155,11 @@ if run:
                 vals.append("")
         grid.append(vals)
 
-    time_cols = [f"時刻（分）：{t:.2f}" for t in times]
-    grid_df = pd.DataFrame(grid, columns=time_cols)
+    # MultiIndex で「時刻（分）」を上段にまとめる
+    multi_index = pd.MultiIndex.from_product([["時刻（分）"], [f"{t:.2f}" for t in times]])
+    grid_df = pd.DataFrame(grid, columns=multi_index)
     grid_df.insert(0, "客番号", df["客番号"].astype(int))
+
     st.dataframe(grid_df, use_container_width=True, height=min(600, 100 + 28*len(grid)))
 
     # ========== ガントチャート ==========
