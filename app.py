@@ -8,13 +8,17 @@ from matplotlib.patches import Patch
 # ===== 日本語フォント設定 =====
 # Windows の場合
 plt.rcParams['font.family'] = 'MS Gothic'
-# Mac の場合
+
+# Mac の場合（コメントアウトを外してください）
 # plt.rcParams['font.family'] = 'Hiragino Sans'
-# Linux（IPAフォントをインストールしている場合）
+
+# Linux（Streamlit Cloud など）の場合
+# IPAフォントが必要 → !apt-get -y install fonts-ipafont-gothic
 # plt.rcParams['font.family'] = 'IPAPGothic'
 
 # マイナス記号が文字化けしないように
 plt.rcParams['axes.unicode_minus'] = False
+
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
 st.title("レジ待ち行列シミュレーション（レジ1台 ↔ 2台 切替）")
@@ -41,13 +45,8 @@ with st.sidebar:
     st.markdown("---")
     run = st.button("シミュレーション実行", use_container_width=True)
 
-# ========== シミュレーション（M/M/c風：c=1 or 2） ==========
+# ========== シミュレーション関数 ==========
 def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=False):
-    """
-    先着順（FCFS）。レジが空き次第、次の客の対応を開始。
-    到着間隔 ~ Exp(mean_arrival), 対応時間 ~ Exp(mean_service)
-    servers: レジ台数（1 または 2）
-    """
     rng = np.random.default_rng(seed)
 
     # 到着時刻
@@ -74,20 +73,15 @@ def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=Fal
     queue_len_at_arrival = np.zeros(N, dtype=int)
 
     for i in range(N):
-        # 到着時点でシステム内にいる人数（まだ終わっていない先客）
         in_system = np.sum(end[:i] > arr[i])
-        # 並んでいる人数 = max(システム内人数 - レジ台数, 0)
         queue_len_at_arrival[i] = max(int(in_system) - servers, 0)
 
-        # 一番早く空くレジ
         s_idx = np.argmin(server_free)
-        # 開始時刻は「到着時刻」と「そのレジが空く時刻」の遅い方
         start[i] = max(arr[i], server_free[s_idx])
         wait[i] = start[i] - arr[i]
         end[i] = start[i] + service[i]
         server_free[s_idx] = end[i]
 
-    # ここで日本語の列名に統一
     df = pd.DataFrame({
         "客番号": np.arange(1, N+1),
         "並び始め（分）": np.round(arr, 3),
@@ -116,9 +110,8 @@ if run:
         example=example
     )
 
-    # 目安：利用率 ρ = λ / (c μ)
-    lam = 1.0 / float(heikin_tochaku)   # 到着率 λ
-    mu = 1.0 / float(heikin_taio)       # サービス率 μ（レジ1台あたり）
+    lam = 1.0 / float(heikin_tochaku)
+    mu = 1.0 / float(heikin_taio)
     rho = lam / (int(regis) * mu)
 
     st.subheader("結果まとめ")
@@ -153,14 +146,13 @@ if run:
         vals = []
         for t in times:
             if arr <= t < start:
-                vals.append(1)   # 待ち
+                vals.append(1)
             elif start <= t < end:
-                vals.append(0)   # サービス中
+                vals.append(0)
             else:
-                vals.append("")  # 範囲外
+                vals.append("")
         grid.append(vals)
 
-    # 列名は「時刻（分）：0.00」のように日本語を含めてもOK
     time_cols = [f"時刻（分）：{t:.2f}" for t in times]
     grid_df = pd.DataFrame(grid, columns=time_cols)
     grid_df.insert(0, "客番号", df["客番号"].astype(int))
@@ -171,10 +163,8 @@ if run:
     fig, ax = plt.subplots(figsize=(10, 0.35*len(df)+2))
     y = np.arange(len(df))
 
-    # サービス中（塗りつぶしの太い棒）
     ax.barh(y, df["対応終了（分）"] - df["対応開始（分）"],
             left=df["対応開始（分）"], height=0.6, align='center')
-    # 待ち時間（枠線のみ＝薄い枠に見える）
     ax.barh(y, df["対応開始（分）"] - df["並び始め（分）"],
             left=df["並び始め（分）"], height=0.6, align='center', fill=False)
 
