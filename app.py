@@ -1,22 +1,19 @@
-import io
-import re
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import matplotlib.font_manager as fm
 import streamlit as st
-import requests
-from bs4 import BeautifulSoup
-from pandas.api.types import is_scalar
+from matplotlib.patches import Patch
 from pathlib import Path
 
 # === フォント設定 ===
-fp = Path("fonts/SourceHanCodeJP-Regular.otf")
+fp = Path("fonts/SourceHanCodeJP-Regular.otf")  # プロジェクトに fonts フォルダを作ってフォントを置く
 if fp.exists():
     fm.fontManager.addfont(str(fp))
     plt.rcParams["font.family"] = "Source Han Code JP"
 else:
-    for name in ["Noto Sans JP","IPAexGothic","Yu Gothic","Hiragino Sans","Meiryo"]:
+    # 環境にある日本語フォントを優先して使う
+    for name in ["Noto Sans JP", "IPAexGothic", "Yu Gothic", "Hiragino Sans", "Meiryo"]:
         try:
             fm.findfont(fm.FontProperties(family=name), fallback_to_default=False)
             plt.rcParams["font.family"] = name
@@ -24,8 +21,6 @@ else:
         except Exception:
             pass
 plt.rcParams["axes.unicode_minus"] = False
-
-st.set_page_config(page_title="CorrGraph", layout="wide")
 
 # ========== 画面設定 ==========
 st.set_page_config(page_title="レジ待ち行列シミュレーション（1台/2台）", layout="wide")
@@ -53,13 +48,8 @@ with st.sidebar:
     st.markdown("---")
     run = st.button("シミュレーション実行", use_container_width=True)
 
-# ========== シミュレーション（M/M/c風：c=1 or 2） ==========
+# ========== シミュレーション関数 ==========
 def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=False):
-    """
-    先着順（FCFS）。レジが空き次第、次の客の対応を開始。
-    到着間隔 ~ Exp(mean_arrival), 対応時間 ~ Exp(mean_service)
-    servers: レジ台数（1 または 2）
-    """
     rng = np.random.default_rng(seed)
 
     # 到着時刻
@@ -86,19 +76,15 @@ def simulate_queue(N, mean_arrival, mean_service, servers=1, seed=0, example=Fal
     queue_len_at_arrival = np.zeros(N, dtype=int)
 
     for i in range(N):
-        # 到着時点でシステム内にいる人数（まだ終わっていない先客）
         in_system = np.sum(end[:i] > arr[i])
         queue_len_at_arrival[i] = max(int(in_system) - servers, 0)
 
-        # 一番早く空くレジ
         s_idx = np.argmin(server_free)
-        # 開始時刻は「到着時刻」と「そのレジが空く時刻」の遅い方
         start[i] = max(arr[i], server_free[s_idx])
         wait[i] = start[i] - arr[i]
         end[i] = start[i] + service[i]
         server_free[s_idx] = end[i]
 
-    # 日本語の列名
     df = pd.DataFrame({
         "客番号": np.arange(1, N+1),
         "並び始め（分）": np.round(arr, 3),
@@ -127,9 +113,8 @@ if run:
         example=example
     )
 
-    # 目安：利用率 ρ = λ / (c μ)
-    lam = 1.0 / float(heikin_tochaku)   # 到着率 λ
-    mu = 1.0 / float(heikin_taio)       # サービス率 μ（レジ1台あたり）
+    lam = 1.0 / float(heikin_tochaku)
+    mu = 1.0 / float(heikin_taio)
     rho = lam / (int(regis) * mu)
 
     st.subheader("結果まとめ")
@@ -164,11 +149,11 @@ if run:
         vals = []
         for t in times:
             if arr <= t < start:
-                vals.append(1)   # 待ち
+                vals.append(1)
             elif start <= t < end:
-                vals.append(0)   # サービス中
+                vals.append(0)
             else:
-                vals.append("")  # 範囲外
+                vals.append("")
         grid.append(vals)
 
     time_cols = [f"時刻（分）：{t:.2f}" for t in times]
@@ -181,10 +166,8 @@ if run:
     fig, ax = plt.subplots(figsize=(10, 0.35*len(df)+2))
     y = np.arange(len(df))
 
-    # サービス中（塗りつぶしの太い棒）
     ax.barh(y, df["対応終了（分）"] - df["対応開始（分）"],
             left=df["対応開始（分）"], height=0.6, align='center')
-    # 待ち時間（枠線のみ＝薄い枠に見える）
     ax.barh(y, df["対応開始（分）"] - df["並び始め（分）"],
             left=df["並び始め（分）"], height=0.6, align='center', fill=False)
 
